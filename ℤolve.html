@@ -1,0 +1,2169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ℤolve v3.2.0 ex</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.2.1/math.js">
+    </script>
+    <style>
+        :root {
+            --bg: #060b14;
+            --panel: #0d1321;
+            --display-bg: #02040a;
+            --display-text: #f0f4ff;
+            --primary: #8b9cf7;
+            --primary-glow: rgba(139, 156, 247, 0.25);
+            --accent: #34d399;
+            --accent-glow: rgba(52, 211, 153, 0.25);
+            --danger: #f87171;
+            --danger-glow: rgba(248, 113, 113, 0.2);
+            --warning: #fbbf24;
+            --warning-glow: rgba(251, 191, 36, 0.2);
+            --text: #e2e8f0;
+            --text-light: #94a3b8;
+            --text-dim: #64748b;
+            --border: #1a2436;
+            --btn-bg: #111d2e;
+            --btn-hover: #18273d;
+            --btn-press: #0d1825;
+            --radius-lg: 24px;
+            --radius: 14px;
+            --radius-sm: 10px;
+            --radius-xs: 8px;
+            --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+            --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html, body {
+            width: 100%; height: 100%; overflow: hidden;
+            font-family: var(--font-sans); background: #01030a;
+            display: flex; justify-content: center; align-items: center;
+            -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+            overscroll-behavior: none; touch-action: manipulation;
+        }
+        .app-container {
+            width: 100%; height: 100%; max-width: 440px; max-height: 100vh;
+            background: var(--panel); border-radius: var(--radius-lg);
+            box-shadow: 0 0 60px rgba(139,156,247,0.06), 0 30px 80px rgba(0,0,0,0.6);
+            overflow: hidden; display: flex; flex-direction: column;
+            border: 1px solid var(--border);
+            transition: transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.35s ease-out;
+        }
+        @media (min-width: 800px) {
+            .app-container { border-radius: var(--radius-lg); max-height: 95vh; }
+        }
+        /* ---------- LANDSCAPE OVERRIDE ---------- */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .app-container {
+                max-width: 100%;
+                border-radius: 0;
+                height: 100vh;
+                flex-direction: row;          /* side by side */
+                overflow: hidden;
+            }
+            .left-panel {
+                flex: 0 0 50%;                 /* exactly half width */
+                display: flex;
+                flex-direction: column;
+                overflow-y: auto;             /* scroll if too tall */
+                border-right: 1px solid var(--border);
+                height: 100vh;
+            }
+            .keypad-container {
+                flex: 0 0 50%;
+                height: 100vh;                /* fill right side */
+                display: flex;
+                flex-direction: column;
+                border-top: none;
+            }
+            .display-area { min-height: 42px; padding: 4px 10px; }
+            .display-result { font-size: 1.05rem; }
+            .display-input { font-size: 0.65rem; }
+            .cursor-nav { padding: 2px 8px; min-height: 28px; }
+            .cursor-nav-btn { height: 24px; font-size: 0.6rem; padding: 0 6px; }
+            .steps-panel { max-height: 50px; font-size: 0.6rem; padding: 4px 10px; }
+            .tab-nav { padding: 2px 6px; }
+            .tab-btn { padding: 3px 7px; font-size: 0.55rem; }
+            .numeric-keypad {
+                gap: 2px;
+                padding: 4px 6px;
+                flex: 1;                      /* fill remaining height */
+                height: auto;
+            }
+            .key-btn {
+                min-height: 0;
+                padding: 4px 1px;
+                font-size: 0.65rem;
+                border-radius: 6px;
+            }
+            .func-row { padding: 2px 6px; min-height: 24px; flex-shrink: 0; }
+            .func-btn { padding: 2px 5px; font-size: 0.55rem; }
+            .matrix-container, .history-panel { max-height: none; }
+        }
+        /* -------------------------------------- */
+        .header {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:10px 16px; background:linear-gradient(180deg,rgba(139,156,247,0.04) 0%,transparent 100%);
+            border-bottom:1px solid var(--border); flex-shrink:0;
+        }
+        .brand { display:flex; align-items:baseline; gap:8px; }
+        .app-title { font-size:1rem; font-weight:800; background:linear-gradient(135deg,var(--primary),#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; letter-spacing:-0.03em; }
+        .app-version { font-size:0.5rem; font-weight:700; color:var(--text-dim); background:var(--btn-bg); padding:2px 6px; border-radius:4px; letter-spacing:0.06em; }
+        .app-model { font-size:0.45rem; font-weight:800; color:var(--accent); background:rgba(52,211,153,0.1); padding:2px 6px; border-radius:4px; letter-spacing:0.08em; border:1px solid rgba(52,211,153,0.2); }
+        .header-actions { display:flex; gap:6px; }
+        .icon-btn { width:30px; height:30px; border:1px solid var(--border); background:var(--btn-bg); border-radius:50%; cursor:pointer; font-size:0.8rem; display:flex; align-items:center; justify-content:center; transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1); color:var(--text-light); }
+        .icon-btn:hover { background:var(--btn-hover); border-color:var(--primary); color:var(--primary); transform:scale(1.1); }
+        .icon-btn:active { transform:scale(0.82); background:var(--btn-press); transition:all 0.08s cubic-bezier(0.34,1.56,0.64,1); }
+        .icon-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); box-shadow:0 0 14px var(--primary-glow); }
+        .display-area { background:var(--display-bg); padding:14px 16px; min-height:100px; display:flex; flex-direction:column; justify-content:flex-end; gap:5px; border-bottom:1px solid var(--border); }
+        .display-meta { display:flex; justify-content:space-between; font-size:0.55rem; font-weight:700; letter-spacing:0.08em; color:var(--text-dim); text-transform:uppercase; }
+        .mode-badge { background:rgba(139,156,247,0.08); padding:3px 8px; border-radius:20px; color:var(--primary); border:1px solid rgba(139,156,247,0.15); }
+        .toggle-group { display:flex; gap:5px; }
+        .live-badge { background:rgba(52,211,153,0.08); color:var(--accent); padding:3px 8px; border-radius:20px; cursor:pointer; transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1); font-size:0.55rem; font-weight:700; letter-spacing:0.06em; border:1px solid rgba(52,211,153,0.15); }
+        .live-badge:hover { background:rgba(52,211,153,0.15); transform:scale(1.08); }
+        .live-badge:active { transform:scale(0.85); transition:all 0.06s cubic-bezier(0.34,1.56,0.64,1); }
+        .live-badge.off { color:var(--text-dim); background:rgba(100,116,139,0.06); border-color:rgba(100,116,139,0.12); }
+        .step-badge { background:rgba(251,191,36,0.08); color:var(--warning); padding:3px 8px; border-radius:20px; cursor:pointer; transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1); font-size:0.55rem; font-weight:700; letter-spacing:0.06em; border:1px solid rgba(251,191,36,0.15); }
+        .step-badge:hover { background:rgba(251,191,36,0.15); transform:scale(1.08); }
+        .step-badge:active { transform:scale(0.85); transition:all 0.06s cubic-bezier(0.34,1.56,0.64,1); }
+        .step-badge.off { color:var(--text-dim); background:rgba(100,116,139,0.06); border-color:rgba(100,116,139,0.12); }
+        .display-input-wrapper { position:relative; font-family:var(--font-mono); font-size:0.85rem; line-height:1.4; min-height:20px; }
+        .display-input { color:var(--text-dim); word-break:break-all; letter-spacing:0.02em; white-space:pre-wrap; outline:none; caret-color:transparent; }
+        .cursor { display:inline-block; width:2px; height:1.1em; background:var(--accent); animation:blink 1s step-end infinite; vertical-align:text-bottom; margin-left:-1px; position:absolute; }
+        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0;} }
+        .display-result { font-family:var(--font-mono); font-size:2rem; font-weight:700; color:var(--display-text); word-break:break-all; line-height:1.15; letter-spacing:-0.03em; text-shadow:0 0 30px rgba(240,244,255,0.08); display:flex; align-items:center; gap:6px; }
+        .display-result.small { font-size:1.3rem; } .display-result.xsmall { font-size:0.9rem; }
+        .display-live { font-family:var(--font-mono); font-size:0.75rem; color:var(--accent); min-height:16px; opacity:0.75; letter-spacing:0.02em; }
+        .cursor-nav { display:flex; gap:6px; padding:8px 18px; background:var(--display-bg); justify-content:center; align-items:center; border-bottom:1px solid var(--border); }
+        .cursor-nav-btn { height:34px; border:1px solid var(--border); background:var(--btn-bg); border-radius:8px; cursor:pointer; font-size:0.75rem; display:flex; align-items:center; justify-content:center; color:var(--text-light); transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1); font-family:var(--font-sans); }
+        .cursor-nav-btn:hover { background:var(--btn-hover); border-color:var(--primary); transform:scale(1.08); }
+        .cursor-nav-btn:active { transform:scale(0.85); background:var(--btn-press); transition:all 0.06s cubic-bezier(0.34,1.56,0.64,1); }
+        .cursor-nav-btn.wide { flex:1; max-width:80px; font-size:0.8rem; font-weight:600; }
+        .cursor-nav-btn.small { width:36px; }
+        .cursor-nav-btn.danger { color:var(--danger); border-color:rgba(248,113,113,0.25); }
+        .cursor-nav-btn.danger:hover { border-color:var(--danger); }
+        .steps-panel { background:#161008; border-top:2px solid rgba(251,191,36,0.25); padding:10px 14px; font-size:0.7rem; color:#fcd34d; line-height:1.55; max-height:130px; overflow-y:auto; display:none; }
+        .steps-panel.visible { display:block; animation:slideDown 0.3s cubic-bezier(0.22,0.61,0.36,1); }
+        @keyframes slideDown { from{max-height:0;opacity:0;transform:translateY(-10px);} to{max-height:130px;opacity:1;transform:translateY(0);} }
+        .step-line { padding:2px 0; border-bottom:1px solid rgba(251,191,36,0.08); }
+        .step-line:last-child { border-bottom:none; }
+        .step-label { font-weight:700; color:var(--warning); margin-right:4px; }
+        .step-error { color:var(--danger); font-weight:600; }
+        .tab-nav { display:flex; overflow-x:auto; gap:3px; padding:7px 8px; background:var(--panel); border-bottom:1px solid var(--border); scrollbar-width:none; flex-shrink:0; -webkit-overflow-scrolling:touch; }
+        .tab-nav::-webkit-scrollbar { display:none; }
+        .tab-btn { flex-shrink:0; padding:6px 10px; border:1px solid transparent; background:var(--btn-bg); font-size:0.62rem; font-weight:600; color:var(--text-light); cursor:pointer; border-radius:18px; transition:all 0.35s cubic-bezier(0.34,1.56,0.64,1); white-space:nowrap; font-family:var(--font-sans); letter-spacing:0.02em; }
+        .tab-btn:hover { background:var(--btn-hover); border-color:var(--border); transform:translateY(-2px); }
+        .tab-btn:active { transform:scale(0.9); background:var(--btn-press); transition:all 0.08s cubic-bezier(0.34,1.56,0.64,1); }
+        .tab-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); box-shadow:0 8px 24px var(--primary-glow); transform:translateY(-2px); }
+        .matrix-container { display:none; padding:8px 12px; background:var(--panel); flex-direction:column; gap:8px; }
+        .matrix-container.visible { display:flex; animation:panelIn 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+        @keyframes panelIn { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
+        .matrix-tabs { display:flex; gap:4px; flex-wrap:wrap; }
+        .matrix-tab { padding:5px 10px; border:1px solid var(--border); background:var(--btn-bg); border-radius:14px; cursor:pointer; font-size:0.66rem; font-weight:600; font-family:var(--font-sans); color:var(--text-light); transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1); letter-spacing:0.02em; }
+        .matrix-tab:hover { background:var(--btn-hover); border-color:var(--primary); transform:translateY(-2px); }
+        .matrix-tab:active { transform:scale(0.9); transition:all 0.06s cubic-bezier(0.34,1.56,0.64,1); }
+        .matrix-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); box-shadow:0 6px 18px var(--primary-glow); }
+        .matrix-tab.add-tab { background:rgba(52,211,153,0.08); color:var(--accent); border-color:rgba(52,211,153,0.25); font-weight:700; }
+        .matrix-tab.delete-tab { background:rgba(248,113,113,0.08); color:var(--danger); border-color:rgba(248,113,113,0.25); font-size:0.55rem; padding:5px 7px; font-weight:700; }
+        .matrix-panel { display:none; flex-direction:column; gap:6px; align-items:center; }
+        .matrix-panel.active { display:flex; }
+        .matrix-row { display:flex; gap:3px; }
+        .matrix-cell { width:40px; height:30px; text-align:center; border:2px solid var(--border); border-radius:5px; font-size:0.78rem; font-family:var(--font-mono); background:var(--btn-bg); color:var(--text); transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1); box-shadow:inset 0 1px 2px rgba(0,0,0,0.3); -moz-appearance:textfield; }
+        .matrix-cell::-webkit-outer-spin-button, .matrix-cell::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+        .matrix-cell:focus { outline:none; border-color:var(--primary); box-shadow:0 0 16px var(--primary-glow),inset 0 1px 2px rgba(0,0,0,0.3); transform:scale(1.1); }
+        .matrix-size-control { display:flex; gap:6px; align-items:center; font-size:0.6rem; color:var(--text-light); }
+        .matrix-size-control input { width:35px; text-align:center; border:2px solid var(--border); border-radius:5px; padding:3px; font-size:0.65rem; background:var(--btn-bg); color:var(--text); transition:all 0.15s ease-out; -moz-appearance:textfield; }
+        .matrix-size-control input::-webkit-outer-spin-button, .matrix-size-control input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+        .matrix-size-control input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 8px var(--primary-glow); }
+        .base-options { display:flex; gap:4px; flex-wrap:wrap; align-items:center; padding:2px 0; }
+        .base-options input { width:38px; text-align:center; border:2px solid var(--border); border-radius:5px; padding:3px; font-size:0.65rem; background:var(--btn-bg); color:var(--text); transition:all 0.15s ease-out; -moz-appearance:textfield; }
+        .base-options input::-webkit-outer-spin-button, .base-options input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+        .base-options input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 8px var(--primary-glow); }
+        .history-panel { display:none; background:var(--panel); border-top:1px solid var(--border); padding:6px 12px; max-height:120px; overflow-y:auto; font-size:0.65rem; }
+        .history-panel.visible { display:block; animation:panelIn 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+        .history-item { display:flex; justify-content:space-between; align-items:center; padding:5px 7px; cursor:pointer; border-radius:6px; font-family:var(--font-mono); font-size:0.65rem; transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1); color:var(--text); }
+        .history-item:hover { background:var(--btn-hover); transform:translateX(4px); }
+        .history-item:active { transform:scale(0.96); transition:all 0.06s cubic-bezier(0.34,1.56,0.64,1); }
+        .hist-expr { color:var(--text-light); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+        .hist-result { font-weight:700; color:var(--accent); margin-left:8px; }
+        .hist-tab { font-size:0.5rem; color:var(--text-dim); margin-left:4px; text-transform:uppercase; }
+        .keypad-container { display:flex; flex-direction:column; flex-shrink:0; border-top:1px solid var(--border); background:var(--panel); }
+        .func-row { display:flex; flex-wrap:wrap; gap:4px; padding:7px 10px; background:#0a101c; justify-content:center; min-height:36px; align-items:center; border-bottom:1px solid var(--border); }
+        .func-btn { padding:5px 9px; border:1px solid rgba(139,156,247,0.2); background:rgba(139,156,247,0.05); font-size:0.62rem; font-weight:600; color:var(--primary); border-radius:7px; cursor:pointer; transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1); font-family:var(--font-sans); white-space:nowrap; letter-spacing:0.03em; }
+        .func-btn:hover { background:rgba(139,156,247,0.12); border-color:var(--primary); transform:translateY(-3px) scale(1.06); box-shadow:0 8px 20px var(--primary-glow); }
+        .func-btn:active { transform:scale(0.8); background:rgba(139,156,247,0.2); transition:all 0.06s cubic-bezier(0.34,1.56,0.64,1); }
+        .func-btn.accent-func { background:rgba(52,211,153,0.05); border-color:rgba(52,211,153,0.2); color:var(--accent); }
+        .func-btn.accent-func:hover { box-shadow:0 8px 20px var(--accent-glow); }
+        .func-btn.danger-func { background:rgba(248,113,113,0.05); border-color:rgba(248,113,113,0.2); color:var(--danger); }
+        .func-btn.danger-func:hover { box-shadow:0 8px 20px var(--danger-glow); }
+        .func-btn.equals-highlight { background:rgba(251,191,36,0.06); border-color:rgba(251,191,36,0.3); color:var(--warning); font-weight:700; }
+        .func-btn.equals-highlight:hover { box-shadow:0 8px 20px var(--warning-glow); }
+        .func-btn.const-func { background:rgba(167,139,250,0.05); border-color:rgba(167,139,250,0.2); color:#c4b5fd; }
+        .numeric-keypad { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; padding:10px 12px; background:var(--panel); }
+        .key-btn {
+            padding:13px 5px; background:var(--btn-bg); border:1px solid var(--border);
+            font-size:0.92rem; font-weight:600; color:var(--text); border-radius:10px;
+            cursor:pointer;
+            transition: transform 0.45s cubic-bezier(0.25, 0.1, 0.25, 1),
+                        background 0.15s ease-out,
+                        box-shadow 0.45s cubic-bezier(0.25, 0.1, 0.25, 1),
+                        border-color 0.15s ease-out;
+            font-family:var(--font-sans); min-height:44px; display:flex;
+            align-items:center; justify-content:center; position:relative; overflow:hidden;
+            letter-spacing:0.02em; -webkit-tap-highlight-color:transparent;
+            will-change:transform,box-shadow;
+            transform:translateZ(0); backface-visibility:hidden;
+        }
+        .key-btn::before { content:''; position:absolute; inset:0; background:rgba(0,0,0,0.3); opacity:0; transition:opacity 0.1s ease-out; border-radius:inherit; z-index:1; }
+        .key-btn:active::before { opacity:1; }
+        .key-btn::after { content:''; position:absolute; top:50%; left:50%; width:0; height:0; background:rgba(255,255,255,0.08); border-radius:50%; transform:translate(-50%,-50%); transition:all 0.5s cubic-bezier(0.25, 0.1, 0.25, 1); z-index:0; }
+        .key-btn:active::after { width:350px; height:350px; transition:all 0s; }
+        .key-btn > span { position:relative; z-index:2; transition: transform 0.45s cubic-bezier(0.25, 0.1, 0.25, 1); }
+        .key-btn:active > span { transform:scale(1.25); transition: transform 0.1s cubic-bezier(0.34,1.56,0.64,1); }
+        .key-btn:hover { background:var(--btn-hover); border-color:#3a4d63; transform:translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,0.4); }
+        .key-btn:active { transform:scale(0.85); background:var(--btn-press); border-color:var(--primary); box-shadow:0 0 35px var(--primary-glow),0 10px 24px rgba(0,0,0,0.5); transition: transform 0.1s cubic-bezier(0.34,1.56,0.64,1), background 0.06s ease-out, box-shadow 0.1s ease-out, border-color 0.06s ease-out; z-index:10; }
+        .key-btn.num-key { font-size:1rem; background:#15202e; font-weight:600; }
+        .key-btn.num-key:active { box-shadow:0 0 35px var(--primary-glow),0 10px 24px rgba(0,0,0,0.5); }
+        .key-btn.op-key { background:rgba(139,156,247,0.06); color:var(--primary); border-color:rgba(139,156,247,0.2); font-weight:700; font-size:0.95rem; }
+        .key-btn.op-key:active { box-shadow:0 0 40px var(--primary-glow),0 10px 24px rgba(0,0,0,0.5); }
+        .key-btn.clear-key { background:rgba(248,113,113,0.04); color:var(--danger); border-color:rgba(248,113,113,0.18); font-weight:700; }
+        .key-btn.clear-key:active { box-shadow:0 0 40px var(--danger-glow),0 10px 24px rgba(0,0,0,0.5); }
+        .key-btn.equals-key { background:var(--accent); color:#000; border-color:var(--accent); font-weight:800; font-size:1.15rem; box-shadow:0 6px 20px var(--accent-glow); animation:gentlePulse 3s ease-in-out infinite; }
+        @keyframes gentlePulse { 0%,100%{box-shadow:0 6px 20px var(--accent-glow);} 50%{box-shadow:0 8px 28px var(--accent-glow),0 0 40px rgba(52,211,153,0.15);} }
+        .key-btn.equals-key:hover { background:#3ed8a2; box-shadow:0 12px 32px var(--accent-glow),0 0 45px rgba(52,211,153,0.25); transform:translateY(-3px); }
+        .key-btn.equals-key:active { transform:scale(0.88); background:#2cc48a; box-shadow:0 0 40px var(--accent-glow),0 0 60px rgba(52,211,153,0.3),0 12px 28px rgba(0,0,0,0.5); transition: transform 0.12s cubic-bezier(0.34,1.56,0.64,1), background 0.06s ease-out, box-shadow 0.12s ease-out; }
+        .toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#1e293b; color:#f0f4ff; padding:9px 18px; border-radius:20px; font-size:0.7rem; font-weight:600; z-index:1000; opacity:0; transition:opacity 0.25s cubic-bezier(0.22,0.61,0.36,1),transform 0.4s cubic-bezier(0.34,1.56,0.64,1); pointer-events:none; box-shadow:0 8px 20px rgba(0,0,0,0.5); border:1px solid var(--border); letter-spacing:0.03em; }
+        .toast.show { opacity:1; transform:translateX(-50%) translateY(-8px) scale(1.04); }
+    </style>
+</head>
+<body>
+    <div class="app-container" id="appContainer">
+        <!-- LEFT PANEL (display, tabs, steps, matrix, history) -->
+        <div class="left-panel">
+            <div class="header">
+                <div class="brand">
+                    <span class="app-title">ℤolve</span>
+                    <span class="app-version">v3.2.0</span>
+                    <span class="app-model">ex</span>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn active" id="fractionToggle" title="Fraction Display">⅔</button>
+                </div>
+            </div>
+
+            <div class="display-area">
+                <div class="display-meta">
+                    <span class="mode-badge" id="modeIndicator">BASIC</span>
+                    <div class="toggle-group">
+                        <span class="live-badge" id="liveToggle">LIVE</span>
+                        <span class="step-badge" id="stepToggle">STEPS</span>
+                    </div>
+                </div>
+                <div class="display-input-wrapper">
+                    <span class="display-input" id="displayInput"></span>
+                    <span class="cursor" id="cursor"></span>
+                </div>
+                <div class="display-live" id="displayLive"></div>
+                <div class="display-result"><span id="displayResult">0</span></div>
+            </div>
+
+            <div class="cursor-nav">
+                <button class="cursor-nav-btn wide" id="cursorLeft" title="Move Left">◀◀</button>
+                <button class="cursor-nav-btn small" id="cursorHome" title="Jump to Start">⏮</button>
+                <button class="cursor-nav-btn small danger" id="cursorDel" title="Delete at Cursor">⌦</button>
+                <button class="cursor-nav-btn small" id="cursorEnd" title="Jump to End">⏭</button>
+                <button class="cursor-nav-btn wide" id="cursorRight" title="Move Right">▶▶</button>
+            </div>
+
+            <div class="steps-panel" id="stepsPanel"></div>
+            <div class="tab-nav" id="tabNav"></div>
+            <div class="matrix-container" id="matrixContainer">
+                <div class="matrix-tabs" id="matrixTabs"></div>
+                <div id="matrixPanels"></div>
+            </div>
+            <div class="history-panel" id="historyPanel"></div>
+        </div>
+
+        <!-- RIGHT PANEL (keypad only) -->
+        <div class="keypad-container">
+            <div class="func-row" id="funcRow"></div>
+            <div class="numeric-keypad" id="numericKeypad"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ==================== UTILITY ====================
+        const getElement = (id) => document.getElementById(id);
+
+        // ==================== CALCULATOR STATE ====================
+        class CalculatorState {
+            constructor() {
+                this.currentTab = 'basic';
+                this.inputExpression = '';
+                this.cursorPosition = 0;
+                this.lastResult = null;
+                this.lastResultValue = null;
+                this.showSteps = true;
+                this.liveMode = true;
+                this.stepsData = [];
+                this.historyList = [];
+                this.trigMode = 'deg';
+                this.baseNMode = 10;
+                this.customBaseFrom = 10;
+                this.customBaseTo = 10;
+                this.showFractions = true;
+                this.matrices = {};
+                this.activeMatrix = 'A';
+                this.matrixCounter = 0;
+                this.liveTimer = null;
+                this.matrixSaveTimeout = null;
+                this.isTransitioning = false;
+                this.toastTimeout = null;
+            }
+
+            saveMatrixData(key) {
+                if (!this.matrices[key]) return;
+                const matrix = this.matrices[key];
+                const cells = document.querySelectorAll('.matrix-data-cell');
+                cells.forEach(cell => {
+                    const row = parseInt(cell.dataset.row);
+                    const col = parseInt(cell.dataset.col);
+                    if (row < matrix.rows && col < matrix.cols) {
+                        if (!matrix.data[row]) matrix.data[row] = [];
+                        matrix.data[row][col] = parseFloat(cell.value) || 0;
+                    }
+                });
+            }
+
+            initializeMatrices() {
+                if (!this.matrices['A']) {
+                    this.matrices['A'] = { rows: 2, cols: 2, data: [[0, 0], [0, 0]] };
+                    this.matrices['B'] = { rows: 2, cols: 2, data: [[0, 0], [0, 0]] };
+                    this.matrixCounter = 2;
+                }
+                this.activeMatrix = this.activeMatrix || 'A';
+            }
+
+            addStep(label, content, isError = false) {
+                this.stepsData.push({ label, content, isError });
+            }
+
+            clearSteps() {
+                this.stepsData = [];
+            }
+
+            addToHistory(expr, result) {
+                this.historyList.unshift({
+                    expr,
+                    result: DisplayManager.formatResult(result, this.showFractions),
+                    value: result,
+                    tab: this.currentTab,
+                    timestamp: Date.now()
+                });
+                if (this.historyList.length > 50) this.historyList.pop();
+            }
+        }
+
+        // ==================== CURSOR MANAGER ====================
+        class CursorManager {
+            static updateCursor(state) {
+                const inputElement = getElement('displayInput');
+                const cursorElement = getElement('cursor');
+                const text = state.inputExpression;
+                const position = state.cursorPosition;
+
+                if (position >= text.length) {
+                    cursorElement.style.left = (inputElement.offsetWidth || 0) + 'px';
+                    cursorElement.style.top = '0px';
+                    return;
+                }
+
+                const textBeforeCursor = text.substring(0, position);
+                const measureElement = document.createElement('span');
+                measureElement.style.cssText = window.getComputedStyle(inputElement).cssText;
+                measureElement.style.position = 'absolute';
+                measureElement.style.visibility = 'hidden';
+                measureElement.style.whiteSpace = 'pre';
+                measureElement.textContent = textBeforeCursor;
+                document.body.appendChild(measureElement);
+                cursorElement.style.left = measureElement.offsetWidth + 'px';
+                cursorElement.style.top = '0px';
+                document.body.removeChild(measureElement);
+            }
+
+            static moveLeft(state) {
+                if (state.cursorPosition > 0) {
+                    state.cursorPosition--;
+                    this.updateCursor(state);
+                    DisplayManager.updateDisplay(state, false);
+                }
+            }
+
+            static moveRight(state) {
+                if (state.cursorPosition < state.inputExpression.length) {
+                    state.cursorPosition++;
+                    this.updateCursor(state);
+                    DisplayManager.updateDisplay(state, false);
+                }
+            }
+
+            static moveHome(state) {
+                state.cursorPosition = 0;
+                this.updateCursor(state);
+                DisplayManager.updateDisplay(state, false);
+            }
+
+            static moveEnd(state) {
+                state.cursorPosition = state.inputExpression.length;
+                this.updateCursor(state);
+                DisplayManager.updateDisplay(state, false);
+            }
+
+            static deleteAtCursor(state) {
+                if (state.cursorPosition < state.inputExpression.length) {
+                    state.inputExpression =
+                        state.inputExpression.substring(0, state.cursorPosition) +
+                        state.inputExpression.substring(state.cursorPosition + 1);
+                    this.updateCursor(state);
+                    DisplayManager.updateDisplay(state, true);
+                }
+            }
+
+            static insertAtCursor(state, character) {
+                state.inputExpression =
+                    state.inputExpression.substring(0, state.cursorPosition) +
+                    character +
+                    state.inputExpression.substring(state.cursorPosition);
+                state.cursorPosition += character.length;
+                this.updateCursor(state);
+                DisplayManager.updateDisplay(state, true);
+            }
+
+            static backspaceAtCursor(state) {
+                if (state.cursorPosition > 0) {
+                    state.inputExpression =
+                        state.inputExpression.substring(0, state.cursorPosition - 1) +
+                        state.inputExpression.substring(state.cursorPosition);
+                    state.cursorPosition--;
+                    this.updateCursor(state);
+                    DisplayManager.updateDisplay(state, true);
+                }
+            }
+        }
+
+        // ==================== DISPLAY MANAGER ====================
+        class DisplayManager {
+            static formatResult(value, showFractions = true) {
+                if (value === undefined || value === null) return '0';
+
+                if (MathEngine.isComplex(value)) {
+                    const realPart = DisplayManager.formatResult(value.re, showFractions);
+                    const imagPart = DisplayManager.formatResult(value.im, showFractions);
+                    if (value.im === 0) return realPart;
+                    if (value.re === 0) {
+                        return Math.abs(value.im) === 1 ? (value.im > 0 ? 'i' : '-i') : imagPart + 'i';
+                    }
+                    const sign = value.im >= 0 ? ' + ' : ' − ';
+                    const absImag = Math.abs(value.im);
+                    return realPart + sign + (absImag === 1 ? '' : absImag) + 'i';
+                }
+
+                if (typeof value === 'number') {
+                    if (isNaN(value)) return 'Undefined';
+                    if (!isFinite(value)) return 'Undefined';
+                    if (Math.abs(value - Math.round(value)) < 1e-12 && Math.abs(value) < 1e15) {
+                        return Math.round(value).toString();
+                    }
+                    if (showFractions) {
+                        const fraction = MathEngine.toFraction(value);
+                        if (fraction) return fraction;
+                    }
+                    return parseFloat(value.toPrecision(12)).toString();
+                }
+
+                if (typeof value === 'string') return value;
+                if (Array.isArray(value)) {
+                    return '[' + value.map(v => DisplayManager.formatResult(v, showFractions)).join(', ') + ']';
+                }
+                if (value && value.toString) return value.toString().replace(/\s*\*\s*/g, '·');
+                return String(value);
+            }
+
+            static updateDisplay(state, triggerLive = true) {
+                const inputElement = getElement('displayInput');
+                const resultElement = getElement('displayResult');
+                const liveElement = getElement('displayLive');
+
+                inputElement.textContent = state.inputExpression;
+                const resultText = (state.lastResultValue !== null && state.lastResultValue !== undefined)
+                    ? DisplayManager.formatResult(state.lastResultValue, state.showFractions)
+                    : '0';
+                resultElement.textContent = resultText;
+                resultElement.classList.remove('small', 'xsmall');
+                if (resultText.length > 25) resultElement.classList.add('xsmall');
+                else if (resultText.length > 15) resultElement.classList.add('small');
+                liveElement.textContent = '';
+                CursorManager.updateCursor(state);
+                if (triggerLive) App.triggerLiveEvaluation();
+            }
+
+            static renderSteps(stepsData, showSteps) {
+                const stepsPanel = getElement('stepsPanel');
+                if (!showSteps || stepsData.length === 0) {
+                    stepsPanel.classList.remove('visible');
+                    stepsPanel.innerHTML = '';
+                    return;
+                }
+                stepsPanel.classList.add('visible');
+                stepsPanel.innerHTML = stepsData.map(step =>
+                    `<div class="step-line">
+                        <span class="step-label">${step.label}</span>
+                        <span class="${step.isError ? 'step-error' : ''}">${step.content}</span>
+                    </div>`
+                ).join('');
+                stepsPanel.scrollTop = stepsPanel.scrollHeight;
+            }
+
+            static renderHistory(state) {
+                const historyPanel = getElement('historyPanel');
+                if (state.currentTab !== 'history') {
+                    historyPanel.classList.remove('visible');
+                    return;
+                }
+                historyPanel.classList.add('visible');
+                if (state.historyList.length === 0) {
+                    historyPanel.innerHTML = '<div style="padding:10px;color:var(--text-dim);text-align:center;">No history yet</div>';
+                    return;
+                }
+                historyPanel.innerHTML = state.historyList.map((entry, index) =>
+                    `<div class="history-item" data-index="${index}">
+                        <span class="hist-expr">${entry.expr}</span>
+                        <span class="hist-tab">[${entry.tab}]</span>
+                        <span class="hist-result">= ${entry.result}</span>
+                    </div>`
+                ).join('');
+            }
+
+            static showToast(message) {
+                const toastElement = getElement('toast');
+                toastElement.textContent = message;
+                toastElement.classList.add('show');
+                if (App.state.toastTimeout) clearTimeout(App.state.toastTimeout);
+                App.state.toastTimeout = setTimeout(() => toastElement.classList.remove('show'), 1800);
+                if (navigator.vibrate) navigator.vibrate(6);
+            }
+        }
+
+        // ==================== MATH ENGINE ====================
+        class MathEngine {
+            static isComplex(value) {
+                return value && typeof value === 'object' && value.type === 'Complex';
+            }
+
+            static toFraction(decimal) {
+                if (!isFinite(decimal) || isNaN(decimal) || Math.abs(decimal) > 1e10) return null;
+                if (Math.abs(decimal - Math.round(decimal)) < 1e-12) return null;
+                for (let denominator = 1; denominator <= 10000; denominator++) {
+                    const numerator = Math.round(decimal * denominator);
+                    if (Math.abs(decimal - numerator / denominator) < 1e-12) {
+                        if (denominator === 1) return numerator.toString();
+                        const gcdFunction = (a, b) => b === 0 ? a : gcdFunction(b, a % b);
+                        const gcd = gcdFunction(Math.abs(numerator), denominator);
+                        return `${numerator / gcd}/${denominator / gcd}`;
+                    }
+                }
+                return null;
+            }
+
+            static addImplicitMultiplication(expression) {
+                return expression
+                    .replace(/(\d)\(/g, '$1*(')
+                    .replace(/\)\(/g, ')*(')
+                    .replace(/\)(\d)/g, ')*$1')
+                    .replace(/(\d)([a-zA-Z])/g, '$1*$2');
+            }
+
+            static isValidForBase(input, base) {
+                const validChars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'.substring(0, base);
+                return new RegExp('^[' + validChars + ']+$', 'i').test(input.replace(/\s/g, ''));
+            }
+
+            static detectBase(input) {
+                const cleaned = input.replace(/\s/g, '');
+                if (/^[01]+$/.test(cleaned) && /[1]/.test(cleaned)) return 2;
+                if (/^[0-7]+$/.test(cleaned)) return 8;
+                if (/^[0-9]+$/.test(cleaned)) return 10;
+                if (/^[0-9A-Fa-f]+$/.test(cleaned)) return 16;
+                return 10;
+            }
+
+            static evaluateTrigonometric(expression, mode) {
+                if (mode !== 'deg') return math.evaluate(MathEngine.addImplicitMultiplication(expression));
+
+                const scope = {
+                    sin_deg: (x) => {
+                        const angle = ((x % 360) + 360) % 360;
+                        const absAngle = Math.abs(angle);
+                        if (Math.abs(angle % 180) < 1e-10) return 0;
+                        if (Math.abs(angle % 90) < 1e-10 && Math.abs(angle % 180) > 1e-10) {
+                            return Math.round(absAngle / 90) % 2 === 1 ? 1 : -1;
+                        }
+                        return MathEngine.getExactTrigValue(angle, 'sin') || Math.sin(angle * Math.PI / 180);
+                    },
+                    cos_deg: (x) => {
+                        const angle = ((x % 360) + 360) % 360;
+                        const absAngle = Math.abs(angle);
+                        if (Math.abs(absAngle - 90) < 1e-10 || Math.abs(absAngle - 270) < 1e-10) return 0;
+                        if (Math.abs(angle % 180) < 1e-10) return Math.round(absAngle / 180) % 2 === 1 ? -1 : 1;
+                        return MathEngine.getExactTrigValue(angle, 'cos') || Math.cos(angle * Math.PI / 180);
+                    },
+                    tan_deg: (x) => {
+                        const angle = ((x % 360) + 360) % 360;
+                        const absAngle = Math.abs(angle);
+                        if (Math.abs(absAngle % 180 - 90) < 1e-10) return NaN;
+                        if (Math.abs(angle % 180) < 1e-10) return 0;
+                        if (Math.abs(absAngle % 180 - 45) < 1e-10) return absAngle < 180 ? 1 : -1;
+                        if (Math.abs(absAngle % 180 - 135) < 1e-10) return absAngle < 180 ? -1 : 1;
+                        const value = Math.tan(angle * Math.PI / 180);
+                        return Math.abs(value) > 1e10 ? NaN : value;
+                    },
+                    asin_deg: (x) => Math.asin(x) * 180 / Math.PI,
+                    acos_deg: (x) => Math.acos(x) * 180 / Math.PI,
+                    atan_deg: (x) => Math.atan(x) * 180 / Math.PI,
+                };
+
+                const converted = expression
+                    .replace(/asin\(/g, 'asin_deg(')
+                    .replace(/acos\(/g, 'acos_deg(')
+                    .replace(/atan\(/g, 'atan_deg(')
+                    .replace(/sin\(/g, 'sin_deg(')
+                    .replace(/cos\(/g, 'cos_deg(')
+                    .replace(/tan\(/g, 'tan_deg(');
+
+                return math.evaluate(MathEngine.addImplicitMultiplication(converted), scope);
+            }
+
+            static getExactTrigValue(absAngle, signedAngle, functionName) {
+                const exactValues = {
+                    sin: {
+                        30: 0.5, 150: 0.5, 210: -0.5, 330: -0.5,
+                        45: Math.sqrt(2) / 2, 135: Math.sqrt(2) / 2,
+                        225: -Math.sqrt(2) / 2, 315: -Math.sqrt(2) / 2,
+                        60: Math.sqrt(3) / 2, 120: Math.sqrt(3) / 2,
+                        240: -Math.sqrt(3) / 2, 300: -Math.sqrt(3) / 2
+                    },
+                    cos: {
+                        60: 0.5, 300: 0.5, 120: -0.5, 240: -0.5,
+                        45: Math.sqrt(2) / 2, 315: Math.sqrt(2) / 2,
+                        135: -Math.sqrt(2) / 2, 225: -Math.sqrt(2) / 2,
+                        30: Math.sqrt(3) / 2, 330: Math.sqrt(3) / 2,
+                        150: -Math.sqrt(3) / 2, 210: -Math.sqrt(3) / 2
+                    }
+                };
+
+                const values = exactValues[functionName] || {};
+                for (const [degree, value] of Object.entries(values)) {
+                    if (Math.abs(absAngle - parseInt(degree)) < 1e-10) {
+                        if (functionName === 'sin') {
+                            return signedAngle < 0 && absAngle > 180 ? -value : value;
+                        }
+                        return value;
+                    }
+                }
+                return null;
+            }
+
+            static simpleIntegrate(expression) {
+                const cleaned = expression.replace(/\s/g, '');
+                const patterns = {
+                    'x': 'x^2/2 + C',
+                    'x^2': 'x^3/3 + C',
+                    'x^3': 'x^4/4 + C',
+                    'sin(x)': '-cos(x) + C',
+                    'cos(x)': 'sin(x) + C',
+                    'e^x': 'e^x + C',
+                    '1/x': 'ln|x| + C'
+                };
+                if (patterns[cleaned]) return patterns[cleaned];
+                if (/^\d+$/.test(cleaned)) return cleaned + 'x + C';
+                if (/^\d*x\^?\d*$/.test(cleaned)) {
+                    let coefficient = 1, power = 1;
+                    const match = cleaned.match(/^(\d*)\*?x\^?(\d*)$/);
+                    if (match) {
+                        coefficient = match[1] ? parseInt(match[1]) : 1;
+                        power = match[2] ? parseInt(match[2]) : 1;
+                    }
+                    const newPower = power + 1;
+                    return `${coefficient / newPower}*x^${newPower} + C`;
+                }
+                return null;
+            }
+
+            static extractCoefficient(expression, variable, power) {
+                try {
+                    let normalized = MathEngine.addImplicitMultiplication(expression).replace(/\^/g, '^');
+                    if (power === 0) {
+                        const zeroSubstituted = normalized.replace(
+                            new RegExp(variable + '(\\^\\d+)?', 'g'), '0'
+                        );
+                        return math.evaluate(zeroSubstituted);
+                    } else if (power === 1) {
+                        const atOne = normalized
+                            .replace(new RegExp(variable + '\\^\\d+', 'g'), '0')
+                            .replace(new RegExp(variable, 'g'), '1');
+                        const atZero = normalized.replace(
+                            new RegExp(variable + '(\\^\\d+)?', 'g'), '0'
+                        );
+                        return math.evaluate(atOne) - math.evaluate(atZero);
+                    } else {
+                        let base = normalized;
+                        base = base.replace(new RegExp(variable + '\\^(?!' + power + ')\\d+', 'g'), '0');
+                        base = base.replace(new RegExp(variable + '\\^' + power, 'g'), '(' + Math.pow(2, power) + ')');
+                        base = base.replace(new RegExp(variable + '(?!\\^)', 'g'), '0');
+                        const atTwo = math.evaluate(base);
+
+                        base = normalized;
+                        base = base.replace(new RegExp(variable + '\\^(?!' + power + ')\\d+', 'g'), '0');
+                        base = base.replace(new RegExp(variable + '\\^' + power, 'g'), '1');
+                        base = base.replace(new RegExp(variable + '(?!\\^)', 'g'), '0');
+                        const atOne = math.evaluate(base);
+
+                        const atZero = math.evaluate(
+                            normalized.replace(new RegExp(variable + '(\\^\\d+)?', 'g'), '0')
+                        );
+                        return (atTwo - 2 * atOne + atZero) / 2;
+                    }
+                } catch (error) {
+                    return 0;
+                }
+            }
+
+            static isQuadratic(expression, variable) {
+                try {
+                    const simplified = math.simplify(expression).toString();
+                    return simplified.includes(variable + '^2') ||
+                           simplified.includes(variable + ' ^ 2') ||
+                           (simplified.includes('^2') && simplified.includes(variable));
+                } catch (error) {
+                    return expression.includes(variable + '^2') || expression.includes(variable + ' ^ 2');
+                }
+            }
+
+            static newtonRaphson(functionString, variable, initialGuess = 1, maxIterations = 200, tolerance = 1e-12) {
+                try {
+                    const fn = math.compile(functionString);
+                    const derivativeFn = math.compile(math.derivative(functionString, variable).toString());
+                    let x = initialGuess;
+                    for (let i = 0; i < maxIterations; i++) {
+                        const fx = fn.evaluate({ [variable]: x });
+                        const dfx = derivativeFn.evaluate({ [variable]: x });
+                        if (Math.abs(dfx) < 1e-15) break;
+                        const xNew = x - fx / dfx;
+                        if (Math.abs(xNew - x) < tolerance) return xNew;
+                        if (!isFinite(xNew)) break;
+                        x = xNew;
+                    }
+                    return x;
+                } catch (error) {
+                    return null;
+                }
+            }
+
+            static evaluate(expression, state) {
+                let processed = expression.trim();
+                if (state.lastResultValue !== null && typeof state.lastResultValue === 'number') {
+                    processed = processed.replace(/ans/g, '(' + state.lastResultValue + ')');
+                }
+                processed = MathEngine.addImplicitMultiplication(processed);
+                processed = processed.replace(/nroot\(/g, 'nthRoot(');
+                if (state.currentTab === 'trig' && state.trigMode === 'deg') {
+                    return MathEngine.evaluateTrigonometric(processed, 'deg');
+                }
+                return math.evaluate(processed);
+            }
+        }
+
+        // ==================== UI COMPONENTS ====================
+        class UIComponents {
+            static createTabNavigation() {
+                const tabs = ['basic', 'algebra', 'trig', 'calc', 'matrix', 'vector', 'basen', 'eqn', 'hist'];
+                const tabNames = {
+                    basic: 'Basic', algebra: 'Algebra', trig: 'Trig', calc: 'Calc',
+                    matrix: 'Matrix', vector: 'Vector', basen: 'Base‑N', eqn: 'Eqn', hist: 'Hist'
+                };
+                const tabNav = getElement('tabNav');
+                tabNav.innerHTML = tabs.map(tab => {
+                    const mappedTab = tab === 'calc' ? 'calculus' : tab === 'eqn' ? 'eqsolve' : tab === 'hist' ? 'history' : tab;
+                    return `<button class="tab-btn" data-tab="${mappedTab}">${tabNames[tab]}</button>`;
+                }).join('');
+            }
+
+            static createNumericKeypad() {
+                const keys = [
+                    { action: 'clear', label: 'C', cls: 'clear-key' },
+                    { action: 'backspace', label: '⌫', cls: 'clear-key' },
+                    { action: 'symbol', value: '(', label: '(', cls: 'op-key' },
+                    { action: 'symbol', value: ')', label: ')', cls: 'op-key' },
+                    { action: 'symbol', value: '7', label: '7', cls: 'num-key' },
+                    { action: 'symbol', value: '8', label: '8', cls: 'num-key' },
+                    { action: 'symbol', value: '9', label: '9', cls: 'num-key' },
+                    { action: 'symbol', value: '/', label: '÷', cls: 'op-key' },
+                    { action: 'symbol', value: '4', label: '4', cls: 'num-key' },
+                    { action: 'symbol', value: '5', label: '5', cls: 'num-key' },
+                    { action: 'symbol', value: '6', label: '6', cls: 'num-key' },
+                    { action: 'symbol', value: '*', label: '×', cls: 'op-key' },
+                    { action: 'symbol', value: '1', label: '1', cls: 'num-key' },
+                    { action: 'symbol', value: '2', label: '2', cls: 'num-key' },
+                    { action: 'symbol', value: '3', label: '3', cls: 'num-key' },
+                    { action: 'symbol', value: '-', label: '−', cls: 'op-key' },
+                    { action: 'symbol', value: '0', label: '0', cls: 'num-key' },
+                    { action: 'symbol', value: '.', label: '.', cls: 'num-key' },
+                    { action: 'symbol', value: '^', label: '^', cls: 'op-key' },
+                    { action: 'symbol', value: '+', label: '+', cls: 'op-key' },
+                    { action: 'evaluate', label: '=', cls: 'equals-key', span: 2 }
+                ];
+                const keypad = getElement('numericKeypad');
+                keypad.innerHTML = keys.map(key =>
+                    `<button class="key-btn ${key.cls}" data-action="${key.action}" ${key.value ? `data-value="${key.value}"` : ''} style="${key.span ? 'grid-column:span 2' : ''}"><span>${key.label}</span></button>`
+                ).join('');
+            }
+
+            static getFunctionButtons(state) {
+                const { currentTab, trigMode } = state;
+                const buttonDefinitions = {
+                    basic: [
+                        { label: 'i', value: 'i', smart: true, cls: 'const-func' },
+                        { label: 'x', value: 'x', smart: true },
+                        { label: 'xⁿ', value: '^' },
+                        { label: 'ⁿ√x', value: 'nroot(' },
+                        { label: '√', value: 'sqrt(' },
+                        { label: '|x|', value: 'abs(' },
+                        { label: 'π', value: 'pi', smart: true },
+                        { label: 'e', value: 'e', smart: true },
+                        { label: '!', value: '!' },
+                        { label: '=', value: '=', cls: 'equals-highlight' }
+                    ],
+                    algebra: [
+                        { label: 'x', value: 'x', cls: 'accent-func', smart: true },
+                        { label: 'y', value: 'y', cls: 'accent-func', smart: true },
+                        { label: 'i', value: 'i', smart: true, cls: 'const-func' },
+                        { label: 'xⁿ', value: '^' },
+                        { label: '=', value: '=', cls: 'equals-highlight' },
+                        { label: 'A', value: 'A', cls: 'const-func', smart: true },
+                        { label: 'B', value: 'B', cls: 'const-func', smart: true },
+                        { label: 'C', value: 'C', cls: 'const-func', smart: true },
+                        { label: 'D', value: 'D', cls: 'const-func', smart: true },
+                        { label: 'E', value: 'E', cls: 'const-func', smart: true },
+                        { label: 'F', value: 'F', cls: 'const-func', smart: true },
+                        { label: 'Z(x)', value: 'Z(', cls: 'const-func' },
+                        { label: 'Simplify', action: 'simplify' },
+                        { label: 'Expand', action: 'expand' },
+                        { label: 'Solve', action: 'solveEquation', cls: 'accent-func' }
+                    ],
+                    trig: [
+                        { label: 'sin', value: 'sin(' },
+                        { label: 'cos', value: 'cos(' },
+                        { label: 'tan', value: 'tan(' },
+                        { label: 'sin⁻¹', value: 'asin(' },
+                        { label: 'cos⁻¹', value: 'acos(' },
+                        { label: 'tan⁻¹', value: 'atan(' },
+                        { label: 'π', value: 'pi', smart: true },
+                        { label: trigMode === 'deg' ? 'DEG' : 'RAD', action: 'toggleTrigMode', cls: 'danger-func' }
+                    ],
+                    calculus: [
+                        { label: 'diff(', value: 'diff(' },
+                        { label: '∫', value: 'integrate(' },
+                        { label: 'limit(', value: 'limit(' },
+                        { label: 'x', value: 'x', cls: 'accent-func', smart: true },
+                        { label: 'dx', value: ',x)' },
+                        { label: 'Compute', action: 'evaluateCalculus', cls: 'accent-func' }
+                    ],
+                    matrix: [
+                        { label: 'A+B', action: 'matrixAdd' },
+                        { label: 'A−B', action: 'matrixSub' },
+                        { label: 'A×B', action: 'matrixMul' },
+                        { label: 'det', action: 'matrixDet' },
+                        { label: 'inv', action: 'matrixInv' },
+                        { label: 'trans', action: 'matrixTranspose' },
+                        { label: 'Solve', action: 'matrixSolve', cls: 'accent-func' }
+                    ],
+                    vector: [
+                        { label: 'v1+v2', action: 'vectorAdd' },
+                        { label: 'v1−v2', action: 'vectorSub' },
+                        { label: 'v1·v2', action: 'vectorDot' },
+                        { label: 'v1×v2', action: 'vectorCross' },
+                        { label: '|v|', action: 'vectorMag' },
+                        { label: 'unit', action: 'vectorUnit' }
+                    ],
+                    basen: [
+                        { label: 'BIN', action: 'setBase', value: 2 },
+                        { label: 'OCT', action: 'setBase', value: 8 },
+                        { label: 'DEC', action: 'setBase', value: 10 },
+                        { label: 'HEX', action: 'setBase', value: 16 },
+                        { label: 'A', value: 'A', cls: 'accent-func' },
+                        { label: 'B', value: 'B', cls: 'accent-func' },
+                        { label: 'C', value: 'C', cls: 'accent-func' },
+                        { label: 'D', value: 'D', cls: 'accent-func' },
+                        { label: 'E', value: 'E', cls: 'accent-func' },
+                        { label: 'F', value: 'F', cls: 'accent-func' },
+                        { label: 'AND', action: 'bitwiseOp', value: '&' },
+                        { label: 'OR', action: 'bitwiseOp', value: '|' },
+                        { label: 'NOT', action: 'bitwiseNot' },
+                        { label: 'Convert', action: 'baseConvertFull', cls: 'accent-func' },
+                        { label: 'Custom', action: 'customBaseConvert', cls: 'accent-func' }
+                    ],
+                    eqsolve: [
+                        { label: 'x', value: 'x', cls: 'accent-func', smart: true },
+                        { label: 'y', value: 'y', cls: 'accent-func', smart: true },
+                        { label: '=', value: '=', cls: 'equals-highlight' },
+                        { label: 'Solve 1', action: 'solveEquation', cls: 'accent-func' },
+                        { label: 'System', action: 'solveSystem', cls: 'accent-func' }
+                    ],
+                    history: [
+                        { label: 'Clear', action: 'clearHistory', cls: 'danger-func' },
+                        { label: 'Use ans', action: 'useAns' }
+                    ]
+                };
+                return buttonDefinitions[currentTab] || [];
+            }
+
+            static renderFunctionRow(state) {
+                const functionRow = getElement('funcRow');
+                const buttons = UIComponents.getFunctionButtons(state);
+                functionRow.innerHTML = '';
+
+                if (state.currentTab === 'basen') {
+                    const customDiv = document.createElement('div');
+                    customDiv.className = 'base-options';
+                    customDiv.innerHTML = `From:<input type="number" id="customBaseFrom" value="${state.customBaseFrom}" min="2" max="36"> To:<input type="number" id="customBaseTo" value="${state.customBaseTo}" min="2" max="36">`;
+                    functionRow.appendChild(customDiv);
+                    setTimeout(() => {
+                        const fromInput = getElement('customBaseFrom');
+                        const toInput = getElement('customBaseTo');
+                        if (fromInput) {
+                            fromInput.addEventListener('change', () => {
+                                let value = parseInt(fromInput.value);
+                                if (isNaN(value) || value < 2) value = 2;
+                                if (value > 36) value = 36;
+                                state.customBaseFrom = value;
+                                fromInput.value = value;
+                            });
+                        }
+                        if (toInput) {
+                            toInput.addEventListener('change', () => {
+                                let value = parseInt(toInput.value);
+                                if (isNaN(value) || value < 2) value = 2;
+                                if (value > 36) value = 36;
+                                state.customBaseTo = value;
+                                toInput.value = value;
+                            });
+                        }
+                    }, 50);
+                }
+
+                if (buttons.length === 0) {
+                    functionRow.style.display = 'none';
+                    return;
+                }
+                functionRow.style.display = 'flex';
+
+                buttons.forEach(button => {
+                    const element = document.createElement('button');
+                    element.className = 'func-btn ' + (button.cls || '');
+                    element.textContent = button.label;
+                    element.addEventListener('click', () => {
+                        if (button.action) {
+                            App.handleAction(button.action, button.value);
+                        } else if (button.value) {
+                            if (button.smart) {
+                                App.smartInsert(button.value);
+                            } else {
+                                App.handleAction('symbol', button.value);
+                            }
+                        }
+                    });
+                    functionRow.appendChild(element);
+                });
+            }
+
+            static buildMatrixUI(state) {
+                const container = getElement('matrixContainer');
+                const tabsElement = getElement('matrixTabs');
+                const panelsElement = getElement('matrixPanels');
+
+                if (state.currentTab !== 'matrix') {
+                    container.classList.remove('visible');
+                    return;
+                }
+                container.classList.add('visible');
+                state.initializeMatrices();
+
+                // Build matrix tabs
+                tabsElement.innerHTML = '';
+                Object.keys(state.matrices).forEach(key => {
+                    const tab = document.createElement('button');
+                    tab.className = 'matrix-tab' + (key === state.activeMatrix ? ' active' : '');
+                    tab.textContent = `Matrix ${key}`;
+                    tab.addEventListener('click', () => {
+                        if (state.matrixSaveTimeout) clearTimeout(state.matrixSaveTimeout);
+                        state.saveMatrixData(state.activeMatrix);
+                        state.activeMatrix = key;
+                        UIComponents.buildMatrixUI(state);
+                    });
+                    tabsElement.appendChild(tab);
+
+                    if (Object.keys(state.matrices).length > 2 && key !== 'A' && key !== 'B') {
+                        const deleteButton = document.createElement('button');
+                        deleteButton.className = 'matrix-tab delete-tab';
+                        deleteButton.textContent = '×';
+                        deleteButton.addEventListener('click', (event) => {
+                            event.stopPropagation();
+                            App.deleteMatrix(key, state);
+                        });
+                        tabsElement.appendChild(deleteButton);
+                    }
+                });
+
+                // Add new matrix button
+                const addTab = document.createElement('button');
+                addTab.className = 'matrix-tab add-tab';
+                addTab.textContent = '+ New';
+                addTab.addEventListener('click', () => {
+                    state.saveMatrixData(state.activeMatrix);
+                    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                    const newKey = letters[state.matrixCounter] || 'M' + state.matrixCounter;
+                    state.matrices[newKey] = { rows: 2, cols: 2, data: [[0, 0], [0, 0]] };
+                    state.matrixCounter++;
+                    state.activeMatrix = newKey;
+                    UIComponents.buildMatrixUI(state);
+                });
+                tabsElement.appendChild(addTab);
+
+                // Build matrix panel
+                panelsElement.innerHTML = '';
+                const matrix = state.matrices[state.activeMatrix];
+                if (!matrix) return;
+
+                const panel = document.createElement('div');
+                panel.className = 'matrix-panel active';
+                let html = '';
+                for (let row = 0; row < matrix.rows; row++) {
+                    html += '<div class="matrix-row">';
+                    for (let col = 0; col < matrix.cols; col++) {
+                        html += `<input class="matrix-cell matrix-data-cell" data-row="${row}" data-col="${col}" type="number" value="${matrix.data[row]?.[col] || 0}" step="any">`;
+                    }
+                    html += '</div>';
+                }
+                html += `<div class="matrix-size-control">
+                    Rows:<input type="number" class="matrix-rows-input" value="${matrix.rows}" min="1" max="6">
+                    Cols:<input type="number" class="matrix-cols-input" value="${matrix.cols}" min="1" max="6">
+                    <button class="key-btn op-key" style="min-height:26px;padding:3px 8px;font-size:0.6rem;"><span>Resize</span></button>
+                </div>`;
+                panel.innerHTML = html;
+                panelsElement.appendChild(panel);
+
+                // Resize button handler
+                panel.querySelector('.key-btn.op-key').addEventListener('click', () => {
+                    const newRows = parseInt(panel.querySelector('.matrix-rows-input').value) || 2;
+                    const newCols = parseInt(panel.querySelector('.matrix-cols-input').value) || 2;
+                    App.resizeMatrix(state.activeMatrix,
+                        Math.min(6, Math.max(1, newRows)),
+                        Math.min(6, Math.max(1, newCols)), state);
+                });
+
+                // Input debounce
+                panel.addEventListener('input', () => {
+                    if (state.matrixSaveTimeout) clearTimeout(state.matrixSaveTimeout);
+                    state.matrixSaveTimeout = setTimeout(() => state.saveMatrixData(state.activeMatrix), 150);
+                });
+            }
+
+            static formatMatrix(array, showFractions) {
+                if (!Array.isArray(array)) return DisplayManager.formatResult(array, showFractions);
+                return '[' + array.map(row =>
+                    '[' + row.map(value => DisplayManager.formatResult(value, showFractions)).join(',') + ']'
+                ).join(';\n ') + ']';
+            }
+        }
+
+        // ==================== APPLICATION CONTROLLER ====================
+        class App {
+            static state = new CalculatorState();
+
+            static init() {
+                UIComponents.createTabNavigation();
+                UIComponents.createNumericKeypad();
+                App.bindEvents();
+                App.switchTab('basic');
+                const stepToggle = getElement('stepToggle');
+                const liveToggle = getElement('liveToggle');
+                stepToggle.classList.remove('off');
+                liveToggle.classList.remove('off');
+            }
+
+            static bindEvents() {
+                // Tab navigation
+                getElement('tabNav').addEventListener('click', (event) => {
+                    const button = event.target.closest('.tab-btn');
+                    if (button) App.switchTab(button.dataset.tab);
+                });
+
+                // Numeric keypad
+                getElement('numericKeypad').addEventListener('click', (event) => {
+                    const button = event.target.closest('button');
+                    if (!button) return;
+                    App.handleAction(button.dataset.action, button.dataset.value);
+                });
+
+                // Cursor navigation buttons
+                getElement('cursorLeft').addEventListener('click', () => CursorManager.moveLeft(App.state));
+                getElement('cursorRight').addEventListener('click', () => CursorManager.moveRight(App.state));
+                getElement('cursorHome').addEventListener('click', () => CursorManager.moveHome(App.state));
+                getElement('cursorEnd').addEventListener('click', () => CursorManager.moveEnd(App.state));
+                getElement('cursorDel').addEventListener('click', () => CursorManager.deleteAtCursor(App.state));
+
+                // Live toggle
+                getElement('liveToggle').addEventListener('click', function() {
+                    App.state.liveMode = !App.state.liveMode;
+                    this.textContent = App.state.liveMode ? 'LIVE' : 'OFF';
+                    this.classList.toggle('off', !App.state.liveMode);
+                    if (!App.state.liveMode) {
+                        getElement('displayLive').textContent = '';
+                    } else {
+                        App.triggerLiveEvaluation();
+                    }
+                });
+
+                // Steps toggle
+                getElement('stepToggle').addEventListener('click', function() {
+                    App.state.showSteps = !App.state.showSteps;
+                    this.textContent = App.state.showSteps ? 'STEPS' : 'OFF';
+                    this.classList.toggle('off', !App.state.showSteps);
+                    if (!App.state.showSteps) {
+                        getElement('stepsPanel').classList.remove('visible');
+                    } else if (App.state.stepsData.length > 0) {
+                        DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                    }
+                });
+
+                // Fraction toggle
+                getElement('fractionToggle').addEventListener('click', function() {
+                    App.state.showFractions = !App.state.showFractions;
+                    this.classList.toggle('active', App.state.showFractions);
+                    if (App.state.lastResultValue !== null) {
+                        DisplayManager.updateDisplay(App.state, false);
+                    }
+                    App.triggerLiveEvaluation();
+                });
+
+                // History panel
+                getElement('historyPanel').addEventListener('click', (event) => {
+                    const item = event.target.closest('.history-item');
+                    if (!item) return;
+                    const index = parseInt(item.dataset.index);
+                    const entry = App.state.historyList[index];
+                    if (!entry) return;
+                    if (entry.tab && entry.tab !== App.state.currentTab) {
+                        App.switchTab(entry.tab);
+                    }
+                    App.state.inputExpression = entry.expr;
+                    App.state.cursorPosition = entry.expr.length;
+                    App.state.lastResult = entry.value;
+                    App.state.lastResultValue = entry.value;
+                    DisplayManager.updateDisplay(App.state, true);
+                });
+
+                // Keyboard events
+                document.addEventListener('keydown', (event) => {
+                    if (event.target.tagName === 'INPUT') return;
+                    const key = event.key;
+
+                    if (key === 'ArrowLeft') {
+                        event.preventDefault();
+                        CursorManager.moveLeft(App.state);
+                    } else if (key === 'ArrowRight') {
+                        event.preventDefault();
+                        CursorManager.moveRight(App.state);
+                    } else if (key === 'Home') {
+                        event.preventDefault();
+                        CursorManager.moveHome(App.state);
+                    } else if (key === 'End') {
+                        event.preventDefault();
+                        CursorManager.moveEnd(App.state);
+                    } else if (key === 'Delete') {
+                        event.preventDefault();
+                        CursorManager.deleteAtCursor(App.state);
+                        App.triggerLiveEvaluation();
+                    } else if (key === 'Enter') {
+                        event.preventDefault();
+                        App.evaluateExpression();
+                    } else if (key === 'Backspace') {
+                        event.preventDefault();
+                        CursorManager.backspaceAtCursor(App.state);
+                        App.triggerLiveEvaluation();
+                    } else if (key === 'Escape') {
+                        event.preventDefault();
+                        App.handleAction('clear');
+                    } else if (/^[0-9+\-*/.^()]$/.test(key)) {
+                        event.preventDefault();
+                        CursorManager.insertAtCursor(App.state, key);
+                        App.triggerLiveEvaluation();
+                    } else if (key === 'x' || key === 'X') {
+                        event.preventDefault();
+                        App.smartInsert('x');
+                    } else if (key === 'y' || key === 'Y') {
+                        event.preventDefault();
+                        App.smartInsert('y');
+                    }
+                });
+            }
+
+            static switchTab(tab) {
+                if (App.state.isTransitioning) return;
+                App.state.isTransitioning = true;
+
+                if (App.state.currentTab === 'matrix') {
+                    App.state.saveMatrixData(App.state.activeMatrix);
+                }
+
+                const appContainer = getElement('appContainer');
+                const previousResult = App.state.lastResultValue;
+                appContainer.style.transform = 'scale(0.94)';
+                appContainer.style.opacity = '0.4';
+
+                setTimeout(() => {
+                    App.state.currentTab = tab;
+                    getElement('modeIndicator').textContent = tab.toUpperCase();
+
+                    document.querySelectorAll('.tab-btn').forEach(button => {
+                        button.classList.remove('active');
+                    });
+                    const activeButton = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+                    if (activeButton) activeButton.classList.add('active');
+
+                    getElement('matrixContainer').classList.toggle('visible', tab === 'matrix');
+                    getElement('historyPanel').classList.toggle('visible', tab === 'history');
+
+                    if (tab === 'matrix') UIComponents.buildMatrixUI(App.state);
+                    if (tab === 'history') DisplayManager.renderHistory(App.state);
+
+                    UIComponents.renderFunctionRow(App.state);
+                    App.state.clearSteps();
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                    getElement('displayLive').textContent = '';
+                    App.state.inputExpression = '';
+                    App.state.cursorPosition = 0;
+                    App.state.lastResultValue = previousResult;
+                    DisplayManager.updateDisplay(App.state, false);
+
+                    appContainer.style.transform = 'scale(1)';
+                    appContainer.style.opacity = '1';
+
+                    setTimeout(() => {
+                        App.state.isTransitioning = false;
+                    }, 500);
+                }, 250);
+            }
+
+            static smartInsert(value) {
+                const lastChar = App.state.inputExpression.slice(App.state.cursorPosition - 1, App.state.cursorPosition);
+                if (lastChar && /[0-9)]/.test(lastChar) && /^[a-zπei]$/i.test(value)) {
+                    CursorManager.insertAtCursor(App.state, '*' + value);
+                } else {
+                    CursorManager.insertAtCursor(App.state, value);
+                }
+                App.triggerLiveEvaluation();
+            }
+
+            static triggerLiveEvaluation() {
+                if (App.state.liveTimer) clearTimeout(App.state.liveTimer);
+                App.state.liveTimer = setTimeout(() => App.performLiveEvaluation(), 120);
+            }
+
+            static performLiveEvaluation() {
+                const liveElement = getElement('displayLive');
+                if (!App.state.liveMode || !App.state.inputExpression.trim()) {
+                    liveElement.textContent = '';
+                    return;
+                }
+                if (['matrix', 'vector'].includes(App.state.currentTab)) {
+                    liveElement.textContent = '';
+                    return;
+                }
+                try {
+                    const result = MathEngine.evaluate(App.state.inputExpression, App.state);
+                    if ((typeof result === 'number' && !isNaN(result) && isFinite(result)) || MathEngine.isComplex(result)) {
+                        liveElement.textContent = '≈ ' + DisplayManager.formatResult(result, App.state.showFractions);
+                    } else {
+                        liveElement.textContent = '';
+                    }
+                } catch (error) {
+                    liveElement.textContent = '';
+                }
+            }
+
+            static evaluateExpression() {
+                if (!App.state.inputExpression.trim()) return;
+                App.state.clearSteps();
+                const expression = App.state.inputExpression.trim();
+
+                if (App.state.currentTab === 'basen') {
+                    App.performBaseConversion();
+                    return;
+                }
+
+                try {
+                    App.state.addStep('Input:', expression);
+                    const result = MathEngine.evaluate(expression, App.state);
+
+                    if (typeof result === 'number' && (isNaN(result) || !isFinite(result))) {
+                        App.state.addStep('Result:', 'Undefined 📚', true);
+                        DisplayManager.updateDisplay(App.state, false);
+                        App.state.lastResultValue = NaN;
+                    } else {
+                        App.state.addStep('Result:', DisplayManager.formatResult(result, App.state.showFractions));
+                        App.state.lastResult = result;
+                        App.state.lastResultValue = result;
+                        DisplayManager.updateDisplay(App.state, false);
+                    }
+
+                    App.state.addToHistory(expression, result);
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                } catch (error) {
+                    const friendlyMessage = error.message.includes('divide by zero')
+                        ? 'Cannot divide by zero 📚'
+                        : error.message.includes('Syntax')
+                            ? 'Check brackets or operators 🤔'
+                            : error.message;
+                    DisplayManager.updateDisplay(App.state, false);
+                    App.state.addStep('Error:', friendlyMessage, true);
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                }
+            }
+
+            static solveEquation() {
+                const expression = App.state.inputExpression.trim();
+                if (!expression.includes('=')) {
+                    DisplayManager.showToast('Use = sign: 2x+3=9 ✏️');
+                    return;
+                }
+
+                App.state.clearSteps();
+                App.state.addStep('Equation:', expression);
+
+                const parts = expression.split('=');
+                const leftPart = MathEngine.addImplicitMultiplication(parts[0].trim());
+                const rightPart = MathEngine.addImplicitMultiplication(parts[1].trim());
+                const equation = `(${leftPart})-(${rightPart})`;
+                App.state.addStep('Rearrange:', equation + ' = 0');
+
+                try {
+                    const simplified = math.simplify(equation).toString();
+                    App.state.addStep('Simplify:', simplified + ' = 0');
+                    const variable = expression.includes('x') ? 'x' : (expression.includes('y') ? 'y' : 'z');
+
+                    if (MathEngine.isQuadratic(simplified, variable)) {
+                        App.solveQuadratic(simplified, variable, expression);
+                    } else {
+                        App.solveLinear(simplified, variable, expression);
+                    }
+
+                    App.state.addToHistory(expression, App.state.lastResultValue);
+                    DisplayManager.updateDisplay(App.state, false);
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                } catch (error) {
+                    App.solveNumerically(equation, expression);
+                }
+            }
+
+            static solveQuadratic(simplified, variable, expression) {
+                const a = MathEngine.extractCoefficient(simplified, variable, 2);
+                const b = MathEngine.extractCoefficient(simplified, variable, 1);
+                const c = MathEngine.extractCoefficient(simplified, variable, 0);
+
+                App.state.addStep('Quadratic coefficients:',
+                    `a=${DisplayManager.formatResult(a)}, b=${DisplayManager.formatResult(b)}, c=${DisplayManager.formatResult(c)}`);
+
+                const discriminant = b * b - 4 * a * c;
+                App.state.addStep('Discriminant:', `Δ = ${DisplayManager.formatResult(discriminant)}`);
+
+                if (discriminant >= 0) {
+                    const sqrtD = Math.sqrt(discriminant);
+                    const x1 = (-b + sqrtD) / (2 * a);
+                    const x2 = (-b - sqrtD) / (2 * a);
+
+                    if (Math.abs(x1 - x2) < 1e-10) {
+                        App.state.addStep('Double root:', `${variable} = ${DisplayManager.formatResult(x1)}`);
+                        App.state.lastResultValue = x1;
+                        DisplayManager.updateDisplay(App.state, false);
+                    } else {
+                        App.state.addStep('Two roots:',
+                            `${variable}₁ = ${DisplayManager.formatResult(x1)}, ${variable}₂ = ${DisplayManager.formatResult(x2)}`);
+                        App.state.lastResultValue = [x1, x2];
+                        DisplayManager.updateDisplay(App.state, false);
+                    }
+                } else {
+                    const realPart = -b / (2 * a);
+                    const imagPart = Math.sqrt(-discriminant) / (2 * a);
+                    App.state.addStep('Complex roots:',
+                        `${variable} = ${DisplayManager.formatResult(realPart)} ± ${DisplayManager.formatResult(imagPart)}i`);
+                    App.state.lastResultValue = `${DisplayManager.formatResult(realPart)} ± ${DisplayManager.formatResult(imagPart)}i`;
+                    DisplayManager.updateDisplay(App.state, false);
+                }
+            }
+
+            static solveLinear(simplified, variable, expression) {
+                try {
+                    const a = MathEngine.extractCoefficient(simplified, variable, 1);
+                    const b = MathEngine.extractCoefficient(simplified, variable, 0);
+                    App.state.addStep('Linear form:',
+                        `${DisplayManager.formatResult(a)}${variable} + ${DisplayManager.formatResult(b)} = 0`);
+
+                    if (Math.abs(a) < 1e-12) {
+                        if (Math.abs(b) < 1e-12) {
+                            DisplayManager.updateDisplay(App.state, false);
+                            App.state.addStep('Result:', 'Infinite solutions (identity)');
+                        } else {
+                            DisplayManager.updateDisplay(App.state, false);
+                            App.state.addStep('Result:', 'No solution');
+                        }
+                    } else {
+                        const x = -b / a;
+                        App.state.addStep('Result:', `${variable} = ${DisplayManager.formatResult(x)}`);
+                        App.state.lastResultValue = x;
+                        DisplayManager.updateDisplay(App.state, false);
+                    }
+                } catch (error) {
+                    App.solveNumerically(simplified, expression);
+                }
+            }
+
+            static solveNumerically(equation, expression) {
+                App.state.addStep('Newton-Raphson method:', 'Using iterative approximation 🔄');
+                const variable = expression.includes('x') ? 'x' : (expression.includes('y') ? 'y' : 'x');
+                const guesses = [1, -1, 0.5, 2, -2, 10, -10];
+                let bestRoot = null;
+
+                for (const guess of guesses) {
+                    const root = MathEngine.newtonRaphson(equation, variable, guess);
+                    if (root !== null) {
+                        bestRoot = root;
+                        break;
+                    }
+                }
+
+                if (bestRoot !== null) {
+                    App.state.addStep('Approximate root:', `${variable} ≈ ${DisplayManager.formatResult(bestRoot)}`);
+                    App.state.lastResultValue = bestRoot;
+                    App.state.addToHistory(expression, bestRoot);
+                } else {
+                    App.state.addStep('Error:', 'Could not find a solution 🔍', true);
+                }
+                DisplayManager.updateDisplay(App.state, false);
+                DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+            }
+
+            static performBaseConversion() {
+                App.state.clearSteps();
+                const expression = App.state.inputExpression.trim();
+
+                try {
+                    let inputString = expression;
+                    let fromBase = App.state.baseNMode;
+                    const parts = expression.split(/\s+/);
+
+                    if (parts.length >= 2 && !isNaN(parts[1])) {
+                        fromBase = parseInt(parts[1]);
+                        inputString = parts[0];
+                    }
+
+                    inputString = inputString.replace(/\s/g, '');
+                    if (fromBase === 10) {
+                        const detected = MathEngine.detectBase(inputString);
+                        if (detected !== 10) {
+                            fromBase = detected;
+                            App.state.baseNMode = detected;
+                            getElement('modeIndicator').textContent = 'BASE-N';
+                        }
+                    }
+
+                    if (!MathEngine.isValidForBase(inputString, fromBase)) {
+                        throw new Error('Invalid digits for this base');
+                    }
+
+                    App.state.addStep('Input:', `${inputString} (base ${fromBase})`);
+                    const decimal = parseInt(inputString, fromBase);
+                    App.state.addStep('Decimal:', decimal.toString());
+
+                    let result = '';
+                    [2, 8, 10, 16].forEach(base => {
+                        const converted = decimal.toString(base).toUpperCase();
+                        const label = base === 2 ? 'BIN' : base === 8 ? 'OCT' : base === 10 ? 'DEC' : 'HEX';
+                        App.state.addStep(label + ':', converted);
+                        result += `${label}:${converted} `;
+                    });
+
+                    App.state.lastResultValue = result.trim();
+                    App.state.addToHistory('convert(' + expression + ')', result.trim());
+                    DisplayManager.updateDisplay(App.state, false);
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                } catch (error) {
+                    DisplayManager.showToast(error.message);
+                }
+            }
+
+            static performCustomBaseConversion() {
+                if (!App.state.inputExpression.trim()) return;
+                App.state.clearSteps();
+                const expression = App.state.inputExpression.trim();
+
+                try {
+                    let inputString = expression;
+                    let fromBase = App.state.customBaseFrom;
+                    let toBase = App.state.customBaseTo;
+                    const parts = expression.split(/\s+/);
+
+                    if (parts.length >= 3 && !isNaN(parts[1]) && !isNaN(parts[2])) {
+                        inputString = parts[0];
+                        fromBase = parseInt(parts[1]);
+                        toBase = parseInt(parts[2]);
+                    } else if (parts.length >= 2 && !isNaN(parts[1])) {
+                        fromBase = parseInt(parts[1]);
+                        inputString = parts[0];
+                    }
+
+                    if (fromBase === 10 && /[A-Fa-f]/.test(inputString)) {
+                        fromBase = MathEngine.detectBase(inputString);
+                    }
+
+                    if (fromBase < 2 || fromBase > 36 || toBase < 2 || toBase > 36) {
+                        throw new Error('Base must be between 2 and 36 📐');
+                    }
+
+                    inputString = inputString.replace(/\s/g, '').toUpperCase();
+                    if (!MathEngine.isValidForBase(inputString, fromBase)) {
+                        throw new Error(`Invalid digits for base ${fromBase} 🔢`);
+                    }
+
+                    App.state.addStep('Input:', `${inputString} (base ${fromBase})`);
+                    const decimal = parseInt(inputString, fromBase);
+                    App.state.addStep('Decimal:', decimal.toString());
+                    const converted = decimal.toString(toBase).toUpperCase();
+                    App.state.addStep(`Base ${toBase}:`, converted);
+
+                    App.state.lastResultValue = converted;
+                    App.state.addToHistory('convert(' + expression + ')', converted);
+                    DisplayManager.updateDisplay(App.state, false);
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                } catch (error) {
+                    DisplayManager.showToast(error.message);
+                }
+            }
+
+            static performMatrixOperation(operation) {
+                App.state.saveMatrixData('A');
+                App.state.saveMatrixData('B');
+                const matrixA = App.state.matrices['A'].data;
+                const matrixB = App.state.matrices['B'].data;
+                App.state.clearSteps();
+
+                try {
+                    const mathMatrixA = math.matrix(matrixA);
+                    const mathMatrixB = math.matrix(matrixB);
+                    let result;
+
+                    if (operation === 'add') result = math.add(mathMatrixA, mathMatrixB);
+                    else if (operation === 'sub') result = math.subtract(mathMatrixA, mathMatrixB);
+                    else if (operation === 'mul') result = math.multiply(mathMatrixA, mathMatrixB);
+
+                    const resultArray = result.toArray();
+                    App.state.addStep('Result:', UIComponents.formatMatrix(resultArray, App.state.showFractions));
+                    App.state.lastResultValue = resultArray;
+                    App.state.addToHistory(operation + ' matrices', resultArray);
+                    DisplayManager.updateDisplay(App.state, false);
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                } catch (error) {
+                    DisplayManager.showToast('Matrix dimensions do not match 📐');
+                }
+            }
+
+            static performMatrixDeterminant() {
+                App.state.saveMatrixData(App.state.activeMatrix);
+                const matrixData = App.state.matrices[App.state.activeMatrix].data;
+                App.state.clearSteps();
+
+                try {
+                    const determinant = math.det(math.matrix(matrixData));
+                    App.state.addStep(`det(${App.state.activeMatrix}):`, DisplayManager.formatResult(determinant));
+                    App.state.lastResultValue = determinant;
+                    App.state.addToHistory('det(' + App.state.activeMatrix + ')', determinant);
+                    DisplayManager.updateDisplay(App.state, false);
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                } catch (error) {
+                    DisplayManager.showToast('Matrix error 📐');
+                }
+            }
+
+            static performMatrixInverse() {
+                App.state.saveMatrixData(App.state.activeMatrix);
+                const matrixData = App.state.matrices[App.state.activeMatrix].data;
+                App.state.clearSteps();
+
+                try {
+                    if (matrixData.length !== matrixData[0].length) throw new Error('Matrix must be square');
+                    const inverse = math.inv(math.matrix(matrixData)).toArray();
+                    App.state.addStep(`${App.state.activeMatrix}⁻¹:`,
+                        UIComponents.formatMatrix(inverse, App.state.showFractions));
+                    App.state.lastResultValue = inverse;
+                    App.state.matrices[App.state.activeMatrix].data = inverse;
+                    App.state.matrices[App.state.activeMatrix].rows = inverse.length;
+                    App.state.matrices[App.state.activeMatrix].cols = inverse[0].length;
+                    UIComponents.buildMatrixUI(App.state);
+                    App.state.addToHistory('inv(' + App.state.activeMatrix + ')', inverse);
+                    DisplayManager.updateDisplay(App.state, false);
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                } catch (error) {
+                    DisplayManager.showToast('Matrix is singular (determinant = 0) 🚫');
+                }
+            }
+
+            static performMatrixTranspose() {
+                App.state.saveMatrixData(App.state.activeMatrix);
+                const matrixData = App.state.matrices[App.state.activeMatrix].data;
+                App.state.clearSteps();
+
+                try {
+                    const transposed = math.transpose(math.matrix(matrixData)).toArray();
+                    App.state.addStep(`${App.state.activeMatrix}ᵀ:`,
+                        UIComponents.formatMatrix(transposed, App.state.showFractions));
+                    App.state.lastResultValue = transposed;
+                    App.state.addToHistory('transpose(' + App.state.activeMatrix + ')', transposed);
+                    DisplayManager.updateDisplay(App.state, false);
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                } catch (error) {
+                    DisplayManager.showToast('Matrix error 📐');
+                }
+            }
+
+            static performMatrixSolve() {
+                App.state.saveMatrixData(App.state.activeMatrix);
+                const allKeys = Object.keys(App.state.matrices);
+                if (allKeys.length < 2) {
+                    DisplayManager.showToast('Need at least 2 matrices');
+                    return;
+                }
+                const bKey = allKeys.filter(key => key !== App.state.activeMatrix)[0] || allKeys[0];
+                App.state.saveMatrixData(bKey);
+                const matrixA = App.state.matrices[App.state.activeMatrix].data;
+                const matrixB = App.state.matrices[bKey].data;
+                App.state.clearSteps();
+
+                try {
+                    if (matrixA.length !== matrixA[0].length) throw new Error('Matrix A must be square');
+                    const solution = math.multiply(math.inv(math.matrix(matrixA)), math.matrix(matrixB)).toArray();
+                    App.state.addStep('Solution x =', UIComponents.formatMatrix(solution, App.state.showFractions));
+                    App.state.lastResultValue = solution;
+                    App.state.addToHistory('solve ' + App.state.activeMatrix + 'x=' + bKey, solution);
+                    DisplayManager.updateDisplay(App.state, false);
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                } catch (error) {
+                    DisplayManager.showToast('Matrix is singular (determinant = 0) 🚫');
+                }
+            }
+
+            static deleteMatrix(key, state) {
+                if (key === 'A' || key === 'B') {
+                    DisplayManager.showToast('Cannot delete Matrix A or B');
+                    return;
+                }
+                delete state.matrices[key];
+                if (state.activeMatrix === key) state.activeMatrix = 'A';
+                UIComponents.buildMatrixUI(state);
+            }
+
+            static resizeMatrix(key, rows, cols, state) {
+                state.saveMatrixData(key);
+                const matrix = state.matrices[key];
+                const newData = [];
+                for (let row = 0; row < rows; row++) {
+                    newData[row] = [];
+                    for (let col = 0; col < cols; col++) {
+                        newData[row][col] = (matrix.data[row] && matrix.data[row][col] !== undefined)
+                            ? matrix.data[row][col] : 0;
+                    }
+                }
+                matrix.rows = rows;
+                matrix.cols = cols;
+                matrix.data = newData;
+                UIComponents.buildMatrixUI(state);
+            }
+
+            static parseVectorInput() {
+                const text = App.state.inputExpression.trim();
+                return text.split(/\s*;\s*/).map(vectorString => {
+                    const cleaned = vectorString.replace(/[\[\]]/g, '').split(',').map(s => parseFloat(s.trim()));
+                    return cleaned.filter(n => !isNaN(n));
+                }).filter(array => array.length >= 2);
+            }
+
+            static performVectorOperation(operation) {
+                const vectors = App.parseVectorInput();
+                if (vectors.length < 2) {
+                    DisplayManager.showToast('Use format: [1,2]; [3,4] 📝');
+                    return;
+                }
+                const vector1 = [...vectors[0]];
+                const vector2 = [...vectors[1]];
+                const maxLength = Math.max(vector1.length, vector2.length);
+                while (vector1.length < maxLength) vector1.push(0);
+                while (vector2.length < maxLength) vector2.push(0);
+
+                App.state.clearSteps();
+                const result = operation === 'add'
+                    ? vector1.map((n, i) => n + vector2[i])
+                    : vector1.map((n, i) => n - vector2[i]);
+
+                App.state.addStep(`v1 ${operation === 'add' ? '+' : '−'} v2 (padded):`,
+                    DisplayManager.formatResult(result));
+                App.state.lastResultValue = result;
+                App.state.addToHistory(operation + ' vectors', result);
+                DisplayManager.updateDisplay(App.state, false);
+                DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+            }
+
+            static performVectorDotProduct() {
+                const vectors = App.parseVectorInput();
+                if (vectors.length < 2) {
+                    DisplayManager.showToast('Use format: [1,2]; [3,4] 📝');
+                    return;
+                }
+                const maxLength = Math.max(vectors[0].length, vectors[1].length);
+                let dotProduct = 0;
+                for (let i = 0; i < maxLength; i++) {
+                    dotProduct += (vectors[0][i] || 0) * (vectors[1][i] || 0);
+                }
+                App.state.clearSteps();
+                App.state.addStep('v1 · v2:', DisplayManager.formatResult(dotProduct));
+                App.state.lastResultValue = dotProduct;
+                App.state.addToHistory('dot product', dotProduct);
+                DisplayManager.updateDisplay(App.state, false);
+                DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+            }
+
+            static performVectorCrossProduct() {
+                const vectors = App.parseVectorInput();
+                if (vectors.length < 2 || vectors[0].length < 3 || vectors[1].length < 3) {
+                    DisplayManager.showToast('Need 3D vectors: [1,2,3]; [4,5,6] 📐');
+                    return;
+                }
+                const [v1, v2] = vectors;
+                const result = [
+                    v1[1] * v2[2] - v1[2] * v2[1],
+                    v1[2] * v2[0] - v1[0] * v2[2],
+                    v1[0] * v2[1] - v1[1] * v2[0]
+                ];
+                App.state.clearSteps();
+                App.state.addStep('v1 × v2:', DisplayManager.formatResult(result));
+                App.state.lastResultValue = result;
+                App.state.addToHistory('cross product', result);
+                DisplayManager.updateDisplay(App.state, false);
+                DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+            }
+
+            static performVectorMagnitude() {
+                const vectors = App.parseVectorInput();
+                if (vectors.length < 1) {
+                    DisplayManager.showToast('Use format: [3,4] 📝');
+                    return;
+                }
+                const magnitude = Math.sqrt(vectors[0].reduce((sum, n) => sum + n * n, 0));
+                App.state.clearSteps();
+                App.state.addStep('|v|:', DisplayManager.formatResult(magnitude));
+                App.state.lastResultValue = magnitude;
+                App.state.addToHistory('magnitude', magnitude);
+                DisplayManager.updateDisplay(App.state, false);
+                DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+            }
+
+            static performVectorUnit() {
+                const vectors = App.parseVectorInput();
+                if (vectors.length < 1) {
+                    DisplayManager.showToast('Use format: [3,4] 📝');
+                    return;
+                }
+                const magnitude = Math.sqrt(vectors[0].reduce((sum, n) => sum + n * n, 0));
+                if (magnitude === 0) {
+                    DisplayManager.showToast('Zero vector has no unit vector 🚫');
+                    return;
+                }
+                const unitVector = vectors[0].map(n => n / magnitude);
+                App.state.clearSteps();
+                App.state.addStep('Unit vector:', DisplayManager.formatResult(unitVector));
+                App.state.lastResultValue = unitVector;
+                App.state.addToHistory('unit vector', unitVector);
+                DisplayManager.updateDisplay(App.state, false);
+                DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+            }
+
+            static performSolveSystem() {
+                if (!App.state.inputExpression.trim()) return;
+                App.state.clearSteps();
+                const expression = App.state.inputExpression.trim();
+                const equations = expression.split(',').map(s => s.trim()).filter(s => s.includes('='));
+
+                if (equations.length < 2) {
+                    DisplayManager.showToast('Need 2+ equations separated by commas ✏️\nExample: 2x+y=7, x-y=1');
+                    return;
+                }
+
+                try {
+                    App.state.addStep('System of equations:', expression);
+                    const variables = [];
+                    if (expression.includes('x')) variables.push('x');
+                    if (expression.includes('y')) variables.push('y');
+                    if (expression.includes('z')) variables.push('z');
+                    if (variables.length < 2) variables.push('x', 'y');
+
+                    const coefficients = [];
+                    const constants = [];
+
+                    for (const equation of equations.slice(0, variables.length)) {
+                        const parts = equation.split('=');
+                        const leftSide = MathEngine.addImplicitMultiplication(parts[0].trim());
+                        let rightValue = 0;
+                        try {
+                            rightValue = math.evaluate(
+                                MathEngine.addImplicitMultiplication(
+                                    parts[1].trim().replace(new RegExp(variables.join('|'), 'g'), '0')
+                                )
+                            );
+                        } catch (e) {
+                            rightValue = parseFloat(parts[1]) || 0;
+                        }
+                        const row = variables.map(v => App.extractCoefficientFromEquation(leftSide, v, variables));
+                        coefficients.push(row);
+                        constants.push([rightValue - App.evaluateConstant(leftSide, variables)]);
+                    }
+
+                    App.state.addStep('Coefficient matrix:',
+                        UIComponents.formatMatrix(coefficients, App.state.showFractions));
+                    const solution = math.multiply(
+                        math.inv(math.matrix(coefficients)),
+                        math.matrix(constants)
+                    ).toArray();
+
+                    const solutionString = variables.map((v, i) =>
+                        `${v} = ${DisplayManager.formatResult(solution[i][0])}`
+                    ).join(', ');
+
+                    App.state.addStep('Solution:', solutionString);
+                    App.state.lastResultValue = solutionString;
+                    App.state.addToHistory(expression, solutionString);
+                    DisplayManager.updateDisplay(App.state, false);
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                } catch (error) {
+                    DisplayManager.showToast('Could not solve this system 🔍');
+                }
+            }
+
+            static extractCoefficientFromEquation(equation, variable, allVariables) {
+                try {
+                    let normalized = MathEngine.addImplicitMultiplication(equation);
+                    let withVariable = normalized;
+                    allVariables.forEach(v => {
+                        withVariable = withVariable.replace(
+                            new RegExp(v, 'g'), v === variable ? '(1)' : '0'
+                        );
+                    });
+                    withVariable = withVariable.replace(/\^/g, '^');
+                    withVariable = withVariable.replace(/\(1\)/g, '(1)').replace(/(\d)\(1\)/g, '$1*(1)');
+                    const withValue = math.evaluate(withVariable);
+
+                    let withoutVariable = normalized;
+                    allVariables.forEach(v => {
+                        withoutVariable = withoutVariable.replace(new RegExp(v, 'g'), '0');
+                    });
+                    withoutVariable = withoutVariable.replace(/\^/g, '^');
+                    const withoutValue = math.evaluate(withoutVariable);
+
+                    return withValue - withoutValue;
+                } catch (error) {
+                    return 0;
+                }
+            }
+
+            static evaluateConstant(equation, allVariables) {
+                try {
+                    let cleaned = MathEngine.addImplicitMultiplication(equation);
+                    allVariables.forEach(v => {
+                        cleaned = cleaned.replace(new RegExp(v + '(\\^\\d+)?', 'g'), '0');
+                    });
+                    cleaned = cleaned.replace(/\^/g, '^');
+                    return math.evaluate(cleaned);
+                } catch (error) {
+                    return 0;
+                }
+            }
+
+            static evaluateCalculus() {
+                if (!App.state.inputExpression.trim()) return;
+                App.state.clearSteps();
+                let expression = MathEngine.addImplicitMultiplication(App.state.inputExpression.trim());
+
+                if (App.state.lastResultValue !== null && typeof App.state.lastResultValue === 'number') {
+                    expression = expression.replace(/ans/g, App.state.lastResultValue.toString());
+                }
+
+                try {
+                    App.state.addStep('Input:', expression);
+
+                    if (expression.startsWith('diff(')) {
+                        const inner = expression.slice(5, -1);
+                        const derivative = math.derivative(inner, 'x');
+                        const result = math.simplify(derivative).toString();
+                        App.state.addStep('Derivative:', result);
+                        App.state.lastResultValue = result;
+                    } else if (expression.startsWith('integrate(')) {
+                        const inner = expression.slice(10, -1);
+                        const lastComma = inner.lastIndexOf(',');
+                        const secondLastComma = inner.lastIndexOf(',', lastComma - 1);
+
+                        if (lastComma > 0 && secondLastComma > 0) {
+                            const functionStr = inner.substring(0, secondLastComma).trim();
+                            let lower = inner.substring(secondLastComma + 1, lastComma).trim();
+                            let upper = inner.substring(lastComma + 1).trim();
+                            if (lower === 'pi') lower = Math.PI; else lower = parseFloat(lower);
+                            if (upper === 'pi') upper = Math.PI; else upper = parseFloat(upper);
+
+                            if (!isNaN(lower) && !isNaN(upper)) {
+                                const compiledFunction = math.compile(functionStr);
+                                const steps = 2000;
+                                const stepSize = (upper - lower) / steps;
+                                let sum = compiledFunction.evaluate({ x: lower }) + compiledFunction.evaluate({ x: upper });
+                                for (let i = 1; i < steps; i++) {
+                                    sum += (i % 2 ? 4 : 2) * compiledFunction.evaluate({ x: lower + i * stepSize });
+                                }
+                                const result = (stepSize / 3) * sum;
+                                App.state.addStep('Definite integral:', DisplayManager.formatResult(result));
+                                App.state.lastResultValue = result;
+                            }
+                        } else {
+                            const functionStr = inner.split(',')[0].trim();
+                            const integrated = MathEngine.simpleIntegrate(functionStr);
+                            if (integrated) {
+                                App.state.addStep('Indefinite integral:', integrated);
+                                App.state.lastResultValue = integrated;
+                            }
+                        }
+                    } else if (expression.startsWith('limit(')) {
+                        const result = math.evaluate(MathEngine.addImplicitMultiplication(expression));
+                        App.state.addStep('Limit:', DisplayManager.formatResult(result));
+                        App.state.lastResultValue = result;
+                    } else {
+                        App.evaluateExpression();
+                        return;
+                    }
+
+                    if (App.state.lastResultValue !== null) {
+                        App.state.addToHistory(expression, App.state.lastResultValue);
+                    }
+                    DisplayManager.updateDisplay(App.state, false);
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                } catch (error) {
+                    DisplayManager.showToast('Could not evaluate this expression 💡');
+                }
+            }
+
+            static performSimplify() {
+                if (!App.state.inputExpression.trim()) return;
+                App.state.clearSteps();
+                const expression = MathEngine.addImplicitMultiplication(App.state.inputExpression.trim());
+                try {
+                    App.state.addStep('Simplify:', expression);
+                    const result = math.simplify(expression).toString();
+                    App.state.addStep('Result:', result);
+                    App.state.lastResultValue = result;
+                    App.state.addToHistory('simplify(' + expression + ')', result);
+                    DisplayManager.updateDisplay(App.state, false);
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                } catch (error) {
+                    DisplayManager.showToast('Could not simplify 💡');
+                }
+            }
+
+            static performExpand() {
+                if (!App.state.inputExpression.trim()) return;
+                App.state.clearSteps();
+                const expression = MathEngine.addImplicitMultiplication(App.state.inputExpression.trim());
+                try {
+                    App.state.addStep('Expand:', expression);
+                    const result = math.simplify(expression, { expand: true }).toString();
+                    App.state.addStep('Result:', result);
+                    App.state.lastResultValue = result;
+                    App.state.addToHistory('expand(' + expression + ')', result);
+                    DisplayManager.updateDisplay(App.state, false);
+                    DisplayManager.renderSteps(App.state.stepsData, App.state.showSteps);
+                } catch (error) {
+                    DisplayManager.showToast('Could not expand 💡');
+                }
+            }
+
+            static handleAction(action, value) {
+                switch (action) {
+                    case 'clear':
+                        App.state.inputExpression = '';
+                        App.state.cursorPosition = 0;
+                        App.state.lastResult = null;
+                        App.state.lastResultValue = null;
+                        App.state.clearSteps();
+                        DisplayManager.updateDisplay(App.state, false);
+                        getElement('displayLive').textContent = '';
+                        break;
+
+                    case 'backspace':
+                        CursorManager.backspaceAtCursor(App.state);
+                        App.triggerLiveEvaluation();
+                        break;
+
+                    case 'symbol':
+                        CursorManager.insertAtCursor(App.state, value || '');
+                        App.triggerLiveEvaluation();
+                        break;
+
+                    case 'evaluate':
+                        App.evaluateExpression();
+                        break;
+
+                    case 'evaluateCalculus':
+                        App.evaluateCalculus();
+                        break;
+
+                    case 'simplify':
+                        App.performSimplify();
+                        break;
+
+                    case 'expand':
+                        App.performExpand();
+                        break;
+
+                    case 'solveEquation':
+                        App.solveEquation();
+                        break;
+
+                    case 'toggleTrigMode':
+                        App.state.trigMode = App.state.trigMode === 'deg' ? 'rad' : 'deg';
+                        DisplayManager.showToast(`Trig mode: ${App.state.trigMode.toUpperCase()}`);
+                        UIComponents.renderFunctionRow(App.state);
+                        App.triggerLiveEvaluation();
+                        break;
+
+                    case 'matrixAdd':
+                        App.performMatrixOperation('add');
+                        break;
+
+                    case 'matrixSub':
+                        App.performMatrixOperation('sub');
+                        break;
+
+                    case 'matrixMul':
+                        App.performMatrixOperation('mul');
+                        break;
+
+                    case 'matrixDet':
+                        App.performMatrixDeterminant();
+                        break;
+
+                    case 'matrixInv':
+                        App.performMatrixInverse();
+                        break;
+
+                    case 'matrixTranspose':
+                        App.performMatrixTranspose();
+                        break;
+
+                    case 'matrixSolve':
+                        App.performMatrixSolve();
+                        break;
+
+                    case 'vectorAdd':
+                        App.performVectorOperation('add');
+                        break;
+
+                    case 'vectorSub':
+                        App.performVectorOperation('sub');
+                        break;
+
+                    case 'vectorDot':
+                        App.performVectorDotProduct();
+                        break;
+
+                    case 'vectorCross':
+                        App.performVectorCrossProduct();
+                        break;
+
+                    case 'vectorMag':
+                        App.performVectorMagnitude();
+                        break;
+
+                    case 'vectorUnit':
+                        App.performVectorUnit();
+                        break;
+
+                    case 'setBase':
+                        App.state.baseNMode = value;
+                        getElement('modeIndicator').textContent = 'BASE-N';
+                        DisplayManager.showToast(`Base: ${value}`);
+                        break;
+
+                    case 'bitwiseOp':
+                        CursorManager.insertAtCursor(App.state, ` ${value} `);
+                        App.triggerLiveEvaluation();
+                        break;
+
+                    case 'bitwiseNot':
+                        App.state.inputExpression = `~(${App.state.inputExpression})`;
+                        App.state.cursorPosition = App.state.inputExpression.length;
+                        DisplayManager.updateDisplay(App.state, true);
+                        break;
+
+                    case 'baseConvertFull':
+                        App.performBaseConversion();
+                        break;
+
+                    case 'customBaseConvert':
+                        App.performCustomBaseConversion();
+                        break;
+
+                    case 'solveSystem':
+                        App.performSolveSystem();
+                        break;
+
+                    case 'clearHistory':
+                        App.state.historyList = [];
+                        DisplayManager.renderHistory(App.state);
+                        DisplayManager.showToast('History cleared');
+                        break;
+
+                    case 'useAns':
+                        if (App.state.lastResultValue !== null) {
+                            CursorManager.insertAtCursor(
+                                App.state,
+                                DisplayManager.formatResult(App.state.lastResultValue, App.state.showFractions)
+                            );
+                            App.triggerLiveEvaluation();
+                        }
+                        break;
+                }
+            }
+        }
+
+        // ==================== BOOTSTRAP ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            App.init();
+        });
+    </script>
+</body>
+</html>
